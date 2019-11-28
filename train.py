@@ -26,14 +26,6 @@ from E2E_MLT.ocr.ocr_net import OCR_NET
 
 logging.basicConfig(level=logging.INFO)
 
-# if torch.cuda.is_available():
-#     device = torch.device("cuda:0")
-#     logging.info("Using {}".format(torch.cuda.get_device_name()))
-# else:
-#     device = torch.device("cpu")
-#     logging.info("Using cpu")
-#
-
 
 def _get_current_timestamp() -> str:
     """
@@ -79,101 +71,6 @@ def _get_ctc_tensors(label_batch, alphabet, device):
 
     return ctc_targets.to(device), target_lengths.to(device)
 
-
-# def train(net, dataloader, optimizer,  criterion, epochs, epoch_start, batch_iter_tr, alphabet, ckpt_dir, tb_dir):
-#     """
-#     We pack the training routine in a function for readability.
-#     :param net: The ocr branch of "E2E-MLT - an Unconstrained End-to-End Method for Multi-Language Scene Text".
-#     :param dataloader: Loader on the e2e_mlt_dataset.
-#     :param optimizer: The optimizer used for training.
-#     :param criterion: The training criterion / loss function.
-#     :param epochs: The total number of epochs.
-#     :param epoch_start: This indicated where we start training. If a checkpoint were save at epoch n, then we resume
-#                         training from this point. If no checkpoint were found, epoch_start = 0, i.e. we start from
-#                         scratch.
-#     :param alphabet: The alphabet used in the ctc loss.
-#     :param ckpt_dir: Directory to save checkpoints of the network during training.
-#     :param tb_dir: Tensorboard directory where summaries are saved.
-#     :return:
-#     """
-#     batch_size = dataloader.batch_size
-#     summary_writer = tensorboardX.SummaryWriter(logdir=tb_dir)
-#
-#     for epoch in range(epoch_start, epochs):
-#         pbar = tqdm(dataloader)
-#         pbar.set_description("TRAINING | Epoch {} / {}".format(epoch + 1, epochs))
-#         for images, labels in pbar:
-#             optimizer.zero_grad()
-#
-#             images = images.to(device)
-#             ctc_targets, target_lengths = _get_ctc_targets(labels, alphabet)
-#             ctc_targets.to(device)
-#             target_lengths.to(device)
-#
-#             # Shape: (100, batch_size, 48)
-#             ocr_outputs = net(images)
-#             # The ctc loss requires the input lengths as it allows for variable length inputs. In our case, all the
-#             # inputs have the same length.
-#             ocr_input_lengths = torch.full(size=(ocr_outputs.size(1), ), fill_value=ocr_outputs.size(0)).to(device)
-#
-#             # ocr_outputs are the inputs of the ctc_loss.
-#             ctc_loss = criterion(ocr_outputs, ctc_targets, ocr_input_lengths, target_lengths)
-#             ctc_loss.backward()
-#             optimizer.step()
-#
-#             summary_writer.add_scalar("CTC loss", ctc_loss, batch_iter_tr)
-#             batch_iter_tr += 1
-#             torch.cuda.empty_cache()
-#
-#         timestamp = _get_current_timestamp()
-#
-#         torch.save({
-#             "net": net,
-#             "net_state_dict": net.state_dict(),
-#             "optimizer": optimizer,
-#             "optimizer_state_dict": optimizer.state_dict(),
-#             "epoch": epoch,
-#             "batch_iter_tr": batch_iter_tr,
-#         }, os.path.join(ckpt_dir, "checkpoint_{}".format(timestamp)))
-
-#
-# def remove_duplicates(sequence, blank_idx):
-#     idx_to_delete = []
-#     for i in range(len(sequence) - 1):
-#         if sequence[i+1] == sequence[i]:
-#             idx_to_delete.append(i+1)
-#     sequence = [sequence[i] for i in range(len(sequence)) if i not in idx_to_delete]
-#     sequence = [s for s in sequence if s != blank_idx]
-#     return sequence
-#
-# sequence = [1, 1, 1, 7, 5, 8, 5,5, 4, 4, 4, 5, 5, 1,1,1,4,4]
-# sequence_ = remove_duplicates(sequence, 4)
-#
-#
-#
-# path_to_image_folder = "/lhome/mabdess/VirEnv/OCR/E2E-MLT-data/split/split_images/train"
-# path_to_label_folder = "/lhome/mabdess/VirEnv/OCR/E2E-MLT-data/split/split_labels/train"
-# alphabet = "1234567890abcdefghijklmnopqrstuvwxyzßäöü().,_+-#"
-# blank_idx = alphabet.index("-")
-#
-# my_dataset = E2E_MLT_Dataset(path_to_image_folder, path_to_label_folder, alphabet)
-# my_dataloader = DataLoader(my_dataset, batch_size=5, shuffle=True)
-# b = my_dataloader.batch_size
-# ocrNet = NET()
-# #
-# #
-# # img = cv2.imread("/lhome/mabdess/VirEnv/OCR/OCR_datasets/CRNN_bh8_ipc1_correct/filtered_split/resized/split_images/"
-# #                  "train/-andere Werke/img_000041046_c0_0.png")
-# # my_img = cv2.imread("/lhome/mabdess/VirEnv/OCR/E2E-MLT-data/split/split_images/train/-Niederlassung/img_000009299_c0_3.png")
-# for img, labels in tqdm(my_dataloader):
-#     img = img
-#     # ctc_targets, lengths = _get_ctc_targets(labels, alphabet)
-#     x_ = ocrNet(img)
-#     a = from_probabilities_to_letters(x_, alphabet, blank_idx)
-#     continue
-#
-# label_batch_ = ["asdksöd", "sfsdfsdfsdfsfsdf", "sdf"]
-# a = _get_ctc_targets(label_batch_, alphabet)
 
 def _get_args():
     arg_parser = argparse.ArgumentParser()
@@ -430,39 +327,6 @@ def train(args):
                                                                    accuracies_val["levenshtein_acc_" + mode]))
 
                     batch_iter_val += 1
-
-                    # Initialize the first best net
-                    # timestamp = _get_current_timestamp()
-
-                    # best_checkpoint = [ckpt for ckpt in os.listdir(args["best_checkpoint"]) if ckpt.endswith("pth")]
-                    # best_checkpoint = [os.path.join(args["checkpoints"], checkpoint) for checkpoint in best_checkpoint]
-                    # if len(best_checkpoint) == 0:
-                    #     torch.save({
-                    #         "net": net,
-                    #         "net_state_dict": net.state_dict(),
-                    #         "optimizer": optimizer,
-                    #         "optimizer_state_dict": optimizer.state_dict(),
-                    #         "epoch": epoch,
-                    #         "batch_iter_tr": batch_iter_tr,
-                    #         "batch_iter_val": batch_iter_val,
-                    #         "val_loss": ctc_loss_val,
-                    #     }, os.path.join(args["best_checkpoint"], "checkpoint_{}.pth".format(timestamp)))
-                    # else:
-                    #     # Load the best checkpoint
-                    #     best_chkpt = torch.load(best_checkpoint)
-                    #     ctc_loss_val_old = best_chkpt["val_loss"]
-                    #     if ctc_loss_val <= ctc_loss_val_old:
-                    #         os.remove(best_checkpoint)
-                    #         torch.save({
-                    #             "net": net,
-                    #             "net_state_dict": net.state_dict(),
-                    #             "optimizer": optimizer,
-                    #             "optimizer_state_dict": optimizer.state_dict(),
-                    #             "epoch": epoch,
-                    #             "batch_iter_tr": batch_iter_tr,
-                    #             "batch_iter_val": batch_iter_val,
-                    #             "val_loss": ctc_loss_val,
-                    #         }, os.path.join(args["best_checkpoint"], "checkpoint_{}.pth".format(timestamp)))
 
                     # Release GPU memory cache
                     torch.cuda.empty_cache()

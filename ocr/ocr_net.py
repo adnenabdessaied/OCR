@@ -27,7 +27,7 @@ class ConvINReLUBlock(nn.Sequential):
                                                         conv_channels_out,
                                                         kernel_size,
                                                         padding=padding),
-                                              # nn.InstanceNorm2d(conv_channels_out, affine=affine),
+                                              nn.InstanceNorm2d(conv_channels_out, affine=affine),
                                               nn.ReLU())
 
 
