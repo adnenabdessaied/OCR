@@ -28,5 +28,3 @@ def decorate_tb_image(image_paths: list, gt_texts: list, pred_texts: list):
         decorated_images.append(torch.from_numpy(img))
 
     return torch.stack(decorated_images, dim=0)
-
-

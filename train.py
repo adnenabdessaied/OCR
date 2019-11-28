@@ -287,6 +287,11 @@ def train(args):
                     images = images.to(device)
                     ctc_targets, target_lengths = _get_ctc_tensors(labels, net.alphabet, device)
 
+                    # Strip all whitespaces because standard 'best path decoding' can't deal with whitespaces between
+                    # words
+                    labels = list(map(lambda x: x.replace(" ", ""), labels))
+                    labels = list(map(lambda x: x.lower(), labels))
+
                     with torch.no_grad():
                         # Shape: (100, batch_size, 48)
                         ocr_outputs = net(images)
@@ -338,57 +343,3 @@ def train(args):
 if __name__ == "__main__":
     args = _get_args()
     train(args)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

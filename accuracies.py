@@ -83,4 +83,3 @@ def compute_accuracies(gts: list, greedy_decodings: list, mode: str):
                   "levenshtein_acc_" + mode: levenshtein_corrects / len(gts)}
 
     return accuracies
-
