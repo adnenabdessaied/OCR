@@ -23,7 +23,7 @@ def from_probabilities_to_letters(ocr_output, alphabet):
     # Detach the ocr output to avoid memory leaks
     ocr_output = ocr_output.detach()
 
-    # Reshape the ocr output --> Shape: (batch_size, 25, 48)
+    # Reshape the ocr output --> Shape: (batch_size, 100, 49)
     ocr_output = ocr_output.permute(1, 0, 2)
 
     greedy_decodings = ocr_output.argmax(dim=2).to(torch.device("cpu"))

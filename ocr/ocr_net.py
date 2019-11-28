@@ -74,51 +74,51 @@ class OCR_NET(nn.Module):
         # Shape: (batch_size, 128, 28, 100)
         x = self.block2(x)
 
-        # Shape: (batch_size, 128, 14, 50)
+        # Shape: (batch_size, 128, 14, 100)
         x = self.maxpool1(x)
 
-        # Shape: (batch_size, 256, 12, 50)
+        # Shape: (batch_size, 256, 12, 100)
         x = self.block3(x)
 
-        # Shape: (batch_size, 256, 10, 50)
+        # Shape: (batch_size, 256, 10, 100)
         x = self.block4(x)
 
-        # Shape: (batch_size, 256, 5, 25)
+        # Shape: (batch_size, 256, 5, 100)
         x = self.maxpool2(x)
 
-        # Shape: (batch_size, 256, 3, 25)
+        # Shape: (batch_size, 256, 3, 100)
         x = self.block5(x)
 
-        # Shape: (batch_size, 256, 1, 25)
+        # Shape: (batch_size, 256, 1, 100)
         x = self.block6(x)
 
-        # Shape: (batch_size, 256, 1, 25)
+        # Shape: (batch_size, 256, 1, 100)
         x = self.dropout(x)
 
-        # Shape: (batch_size, 48, 1, 25) # len(alphabet) = 48
+        # Shape: (batch_size, 49, 1, 100) # len(alphabet) = 48 and +1 for the blank character.
         x = self.conv_last(x)
 
-        # Shape:(batch_size, 48, 25)
+        # Shape:(batch_size, 49, 100)
         x = x.squeeze(2)
 
-        # Shape: (batch_size, 50, 48) --> keep the last dimension for the alphabet size
+        # Shape: (batch_size, 100, 49) --> keep the last dimension for the alphabet size
         x = x.permute(0, 2, 1)
 
         x_shape = x.size()
 
-        # Shape: (batch_size * 25, 48)
+        # Shape: (batch_size * 100, 49)
         x = x.contiguous().view(-1, len(self.alphabet) + 1)
 
-        # Shape: (batch_size * 25, 48) --> We apply a logsoftmax along dim=1, i.e. over the alphabet.
+        # Shape: (batch_size * 100, 49) --> We apply a logsoftmax along dim=1, i.e. over the alphabet.
         x = nn.LogSoftmax(dim=1)(x)
 
-        # Shape: (batch_size, 25, 48)
+        # Shape: (batch_size, 100, 49)
         x = x.view(*x_shape)
 
         # The input to the ctc loss function must have the shape (T, N, C):
         #         T: Input sequence length
         #         N: batch size
         #         C: Number of classes (including blank)
-        # Shape: (25, batch_size, 48)
+        # Shape: (100, batch_size, 48)
         x = x.permute(1, 0, 2)
         return x

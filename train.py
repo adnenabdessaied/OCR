@@ -164,9 +164,7 @@ def train(args):
 
     else:
         # Construct the OCR network from scratch
-        # net = OwnCRNN(device)
         net = OCR_NET()
-        # net = net.double()
         net.to(device)
         logging.info("OCR network successfully constructed...")
 
@@ -211,7 +209,7 @@ def train(args):
                     # images = images.double()
                     ctc_targets, target_lengths = _get_ctc_tensors(labels, net.alphabet, device)
 
-                    # Shape: (100, batch_size, 48)
+                    # Shape: (100, batch_size, 49)
                     ocr_outputs = net(images)
 
                     # The ctc loss requires the input lengths as it allows for variable length inputs. In our case,
@@ -293,7 +291,7 @@ def train(args):
                     labels = list(map(lambda x: x.lower(), labels))
 
                     with torch.no_grad():
-                        # Shape: (100, batch_size, 48)
+                        # Shape: (100, batch_size, 49)
                         ocr_outputs = net(images)
 
                     # The ctc loss requires the input lengths as it allows for variable length inputs. In our case,
