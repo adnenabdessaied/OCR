@@ -7,23 +7,29 @@ __status__ = "Implementation"
 
 import os
 import cv2
+import numpy as np
+
 import torch
 from torch.utils.data.dataset import Dataset
 
 
 class E2E_MLT_Dataset(Dataset):
 
-    def __init__(self, path_to_image_folder: str, path_to_label_folder: str):
+    def __init__(self, path_to_image_folder: str,
+                 path_to_label_folder: str,
+                 alphabet: str,
+                 ):
         """
         E2E_MLT_Dataset constructor.
 
         :param path_to_image_folder: Path to the folder containing the images.
         :param path_to_label_folder: Path to the folder containing the labels.
+        :param alphabet: The union of all characters of the different language alphabets.
         """
         super(E2E_MLT_Dataset, self).__init__()
         assert os.path.isdir(path_to_image_folder)
         assert os.path.isdir(path_to_label_folder)
-
+        self.alphabet = alphabet
         self.path_to_image_folder = path_to_image_folder
         self.path_to_label_folder = path_to_label_folder
 
@@ -37,8 +43,9 @@ class E2E_MLT_Dataset(Dataset):
     def __getitem__(self, idx):
         assert idx in range(self.__len__())
         path_img, _, gt = self.image_paths[idx], self.label_paths[idx], self.gt_indices[idx]
-        img = torch.from_numpy(cv2.imread(path_img))
-        return img, gt
+        img = torch.from_numpy(np.rollaxis(cv2.imread(path_img), -1, 0))
+        img = img / 255.0
+        return img, path_img, self.classes[gt]
 
     def find_classes(self):
         """
