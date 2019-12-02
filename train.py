@@ -96,7 +96,7 @@ def _get_args():
 
     arg_parser.add_argument("-b",
                             "--batch_size",
-                            default=8,
+                            default=16,
                             help="Batch size.")
 
     arg_parser.add_argument("-e",
@@ -148,12 +148,16 @@ def train(args):
         most_recent_chkpt = torch.load(most_recent_chkpt_path)
         net = most_recent_chkpt["net"]
         net.load_state_dict(most_recent_chkpt["net_state_dict"])
-        optimizer = most_recent_chkpt["optimizer"]
-        optimizer.load_state_dict(most_recent_chkpt["optimizer_state_dict"])
 
         # We want to train further
         net.train()
+
+        # Send the net first to the device to avoid potential runtime errors caused by the optimizer if we resume
+        # training on a different device
         net.to(device)
+
+        optimizer = most_recent_chkpt["optimizer"]
+        optimizer.load_state_dict(most_recent_chkpt["optimizer_state_dict"])
 
         start_epoch = most_recent_chkpt["epoch"]
         batch_iter_tr = most_recent_chkpt["batch_iter_tr"]
@@ -175,14 +179,25 @@ def train(args):
         batch_iter_val = 0
 
     # Load the datasets
-    train_dataset = E2E_MLT_Dataset(args["training_images_path"], args["training_labels_path"], net.alphabet)
+    tr_dataset = E2E_MLT_Dataset(args["training_images_path"], args["training_labels_path"], net.alphabet)
     val_dataset = E2E_MLT_Dataset(args["validation_images_path"], args["validation_labels_path"], net.alphabet)
     logging.info("Data successfully loaded ...")
 
+    # Construct the samplers to combat the problem of unbalanced data.
+    tr_counts = np.bincount(tr_dataset.gt_indices)
+    tr_weights = torch.from_numpy(1.0 / tr_counts)
+    tr_weigths_all = tr_weights[tr_dataset.gt_indices]
+    tr_sampler = torch.utils.data.WeightedRandomSampler(tr_weigths_all, len(tr_weigths_all))
+
+    val_counts = np.bincount(val_dataset.gt_indices)
+    val_weights = torch.from_numpy(1.0 / val_counts)
+    val_weigths_all = val_weights[val_dataset.gt_indices]
+    val_sampler = torch.utils.data.WeightedRandomSampler(val_weigths_all, len(val_weigths_all))
+
     # Construct train and validation data loaders
     logging.info("Constructing the data loaders ...")
-    train_data_loader = DataLoader(train_dataset, batch_size=args["batch_size"], shuffle=True, num_workers=6)
-    val_data_loader = DataLoader(val_dataset, batch_size=args["batch_size"], shuffle=True, num_workers=6)
+    tr_data_loader = DataLoader(tr_dataset, batch_size=args["batch_size"], sampler=tr_sampler, num_workers=6)
+    val_data_loader = DataLoader(val_dataset, batch_size=args["batch_size"], sampler=val_sampler, num_workers=6)
     logging.info("Data loaders successfully constructed ...")
 
     # We use the ctc loss function.
@@ -195,7 +210,7 @@ def train(args):
     for epoch in range(start_epoch + 1, args["epochs"]):
         for mode in modes:
             if mode == "TRAINING":
-                pbar_train = tqdm(train_data_loader)
+                pbar_train = tqdm(tr_data_loader)
                 pbar_train.set_description("{} | Epoch {} / {}".format(mode, epoch, args["epochs"]))
                 for images, image_paths, labels in pbar_train:
                     optimizer.zero_grad()
@@ -209,7 +224,7 @@ def train(args):
                     # images = images.double()
                     ctc_targets, target_lengths = _get_ctc_tensors(labels, net.alphabet, device)
 
-                    # Shape: (100, batch_size, 49)
+                    # Shape: (50, batch_size, 49)
                     ocr_outputs = net(images)
 
                     # The ctc loss requires the input lengths as it allows for variable length inputs. In our case,
