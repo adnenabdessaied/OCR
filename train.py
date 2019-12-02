@@ -96,7 +96,7 @@ def _get_args():
 
     arg_parser.add_argument("-b",
                             "--batch_size",
-                            default=16,
+                            default=32,
                             help="Batch size.")
 
     arg_parser.add_argument("-e",
@@ -173,7 +173,7 @@ def train(args):
         logging.info("OCR network successfully constructed...")
 
         # We use learning rate of 1e-4 as suggested in the paper --> https://arxiv.org/pdf/1801.09919.pdf
-        optimizer = optim.Adam(net.parameters(), lr=1e-3)
+        optimizer = optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-5)
         start_epoch = 0
         batch_iter_tr = 0
         batch_iter_val = 0

@@ -43,7 +43,7 @@ class E2E_MLT_Dataset(Dataset):
     def __getitem__(self, idx):
         assert idx in range(self.__len__())
         path_img, _, gt = self.image_paths[idx], self.label_paths[idx], self.gt_indices[idx]
-        img = torch.from_numpy(np.rollaxis(cv2.imread(path_img), -1, 0)).float()
+        img = torch.from_numpy(np.rollaxis(cv2.imread(path_img), -1, 0)/255.0).float()
         return img, path_img, self.classes[gt]
 
     def find_classes(self):
