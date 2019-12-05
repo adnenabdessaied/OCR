@@ -20,7 +20,7 @@ import torch
 import torch.optim as optim
 from torch.nn.modules.loss import CTCLoss
 from torch.utils.data.dataloader import DataLoader
-from E2E_MLT.datasets.e2e_mlt_datasets import E2E_MLT_Dataset
+from E2E_MLT.datasets.e2e_mlt_datasets import E2E_MLT_Dataset_Synth
 from E2E_MLT.ocr.ocr_net import OCR_NET
 
 
@@ -74,25 +74,20 @@ def _get_ctc_tensors(label_batch, alphabet, device):
 
 def _get_args():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("-tri",
-                            "--training_images_path",
-                            default="/lhome/mabdess/VirEnv/OCR/E2E-MLT-data/split/split_images/train",
-                            help="Path to the folder containing the training images.")
+    arg_parser.add_argument("-tr",
+                            "--annotation_train",
+                            default="my_annotation_train.txt",
+                            help="Path to the training annotation .txt file.")
 
-    arg_parser.add_argument("-trl",
-                            "--training_labels_path",
-                            default="/lhome/mabdess/VirEnv/OCR/E2E-MLT-data/split/split_labels/train",
-                            help="Path to the folder containing the training labels.")
+    arg_parser.add_argument("-val",
+                            "--annotation_val",
+                            default="my_annotation_val.txt",
+                            help="Path to the validation annotation .txt file.")
 
-    arg_parser.add_argument("-vali",
-                            "--validation_images_path",
-                            default="/lhome/mabdess/VirEnv/OCR/E2E-MLT-data/split/split_images/val",
-                            help="Path to the folder containing the validation images.")
-
-    arg_parser.add_argument("-vall",
-                            "--validation_labels_path",
-                            default="/lhome/mabdess/VirEnv/OCR/E2E-MLT-data/split/split_labels/val",
-                            help="Path to the folder containing the validation labels.")
+    arg_parser.add_argument("-l",
+                            "--lexicon",
+                            default="lexicon.txt",
+                            help="Path to the lexicon .txt file.")
 
     arg_parser.add_argument("-b",
                             "--batch_size",
@@ -179,25 +174,14 @@ def train(args):
         batch_iter_val = 0
 
     # Load the datasets
-    tr_dataset = E2E_MLT_Dataset(args["training_images_path"], args["training_labels_path"], net.alphabet)
-    val_dataset = E2E_MLT_Dataset(args["validation_images_path"], args["validation_labels_path"], net.alphabet)
+    tr_dataset = E2E_MLT_Dataset_Synth(args["annotation_train"], args["lexicon"], net.alphabet)
+    val_dataset = E2E_MLT_Dataset_Synth(args["annotation_val"], args["lexicon"], net.alphabet)
     logging.info("Data successfully loaded ...")
-
-    # Construct the samplers to combat the problem of unbalanced data.
-    tr_counts = np.bincount(tr_dataset.gt_indices)
-    tr_weights = torch.from_numpy(1.0 / tr_counts)
-    tr_weigths_all = tr_weights[tr_dataset.gt_indices]
-    tr_sampler = torch.utils.data.WeightedRandomSampler(tr_weigths_all, len(tr_weigths_all))
-
-    val_counts = np.bincount(val_dataset.gt_indices)
-    val_weights = torch.from_numpy(1.0 / val_counts)
-    val_weigths_all = val_weights[val_dataset.gt_indices]
-    val_sampler = torch.utils.data.WeightedRandomSampler(val_weigths_all, len(val_weigths_all))
 
     # Construct train and validation data loaders
     logging.info("Constructing the data loaders ...")
-    tr_data_loader = DataLoader(tr_dataset, batch_size=args["batch_size"], sampler=tr_sampler, num_workers=6)
-    val_data_loader = DataLoader(val_dataset, batch_size=args["batch_size"], sampler=val_sampler, num_workers=6)
+    tr_data_loader = DataLoader(tr_dataset, batch_size=args["batch_size"], shuffle=True, num_workers=6)
+    val_data_loader = DataLoader(val_dataset, batch_size=args["batch_size"], shuffle=True, num_workers=6)
     logging.info("Data loaders successfully constructed ...")
 
     # We use the ctc loss function.
@@ -250,7 +234,7 @@ def train(args):
 
                     # choose 4 random pictures for tb visualization
                     try:
-                        random_idx = random.sample(range(len(image_paths)), 4)
+                        random_idx = random.sample(range(len(image_paths)), 10)
                     except ValueError:  # This exception can occur if the very batch contains less then 3 elements
                         random_idx = range(len(image_paths))
 
@@ -324,7 +308,7 @@ def train(args):
 
                     # choose 4 random pictures for tb visualization
                     try:
-                        random_idx = random.sample(range(len(image_paths)), 4)
+                        random_idx = random.sample(range(len(image_paths)), 10)
                     except ValueError:  # This exception can occur if the very batch contains less then 3 elements
                         random_idx = range(len(image_paths))
 
