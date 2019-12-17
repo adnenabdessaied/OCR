@@ -48,21 +48,23 @@ class OCR_NET(nn.Module):
         self.alphabet = alphabet
         self.blank_idx = self.alphabet.index("-")
         self.block1 = ConvINReLUBlock(3, 128, 3, (0, 1))
-        self.batch_norm1 = nn.BatchNorm2d(128)
+        self.batch_norm128 = nn.BatchNorm2d(128)
         self.block2 = ConvINReLUBlock(128, 128, 3, (0, 1))
         self.maxpool1 = nn.MaxPool2d((2, 2), stride=(2, 2))
         self.block3 = ConvINReLUBlock(128, 256, 3, (0, 1))
-        self.batch_norm2 = nn.BatchNorm2d(256)
+        self.batch_norm256 = nn.BatchNorm2d(256)
         self.block4 = ConvINReLUBlock(256, 256, 3, (0, 1))
         self.maxpool2 = nn.MaxPool2d((2, 1), stride=(2, 1))
         self.block5 = ConvINReLUBlock(256, 256, 3, (0, 1))
+        self.batch_norm512 = nn.BatchNorm2d(256)
         self.block6 = ConvINReLUBlock(256, 256, 3, (0, 1))
 
         self.dropout = nn.Dropout2d(p=0.2)
+        self.batch_norm1024 = nn.BatchNorm2d(256)
 
         # the +1 in "len(self.alphabet) + 1" accounts for the blank character.
         self.conv_last = nn.Conv2d(256, len(self.alphabet) + 1, 1)
-        self.batch_norm3 = nn.BatchNorm2d(len(self.alphabet) + 1)
+        self.batch_norm_last = nn.BatchNorm2d(len(self.alphabet) + 1)
 
     def forward(self, x):
         """
@@ -75,40 +77,40 @@ class OCR_NET(nn.Module):
 
         # Shape: (batch_size, 128, 30, 100)
         x = self.block1(x)
-        x = self.batch_norm1(x)
+        x = self.batch_norm128(x)
 
         # Shape: (batch_size, 128, 28, 100)
         x = self.block2(x)
-        x = self.batch_norm1(x)
+        x = self.batch_norm128(x)
 
         # Shape: (batch_size, 128, 14, 50)
         x = self.maxpool1(x)
 
         # Shape: (batch_size, 256, 12, 50)
         x = self.block3(x)
-        x = self.batch_norm2(x)
+        # x = self.batch_norm256(x)
 
         # Shape: (batch_size, 256, 10, 50)
         x = self.block4(x)
-        x = self.batch_norm2(x)
+        # x = self.batch_norm256(x)
 
         # Shape: (batch_size, 256, 5, 50)
         x = self.maxpool2(x)
 
         # Shape: (batch_size, 256, 3, 50)
         x = self.block5(x)
-        x = self.batch_norm2(x)
+        # x = self.batch_norm256(x)
 
         # Shape: (batch_size, 256, 1, 50)
         x = self.block6(x)
-        x = self.batch_norm2(x)
+        x = self.batch_norm256(x)
 
         # Shape: (batch_size, 256, 1, 50)
         x = self.dropout(x)
 
         # Shape: (batch_size, 49, 1, 50) # len(alphabet) = 48 and +1 for the blank character.
         x = self.conv_last(x)
-        x = self.batch_norm3(x)
+        x = self.batch_norm_last(x)
 
         # Shape:(batch_size, 49, 50)
         x = x.squeeze(2)

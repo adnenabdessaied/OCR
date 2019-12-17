@@ -8,17 +8,20 @@ __status__ = "Implementation"
 import os
 import cv2
 import numpy as np
+import logging
+import copy
+import json
+
+from tqdm import tqdm
 
 import torch
 from torch.utils.data.dataset import Dataset
+logging.basicConfig(level=logging.INFO)
 
 
 class E2E_MLT_Dataset(Dataset):
 
-    def __init__(self, path_to_image_folder: str,
-                 path_to_label_folder: str,
-                 alphabet: str,
-                 ):
+    def __init__(self, path_to_image_folder: str, path_to_label_folder: str):
         """
         E2E_MLT_Dataset constructor.
 
@@ -29,10 +32,8 @@ class E2E_MLT_Dataset(Dataset):
         super(E2E_MLT_Dataset, self).__init__()
         assert os.path.isdir(path_to_image_folder)
         assert os.path.isdir(path_to_label_folder)
-        self.alphabet = alphabet
         self.path_to_image_folder = path_to_image_folder
         self.path_to_label_folder = path_to_label_folder
-
         self.classes, self.class_to_idx = self.find_classes()
         self.num_classes = len(self.classes)
         self.image_paths, self.label_paths, self.gt_indices = self.get_data()
@@ -42,9 +43,19 @@ class E2E_MLT_Dataset(Dataset):
 
     def __getitem__(self, idx):
         assert idx in range(self.__len__())
-        path_img, _, gt = self.image_paths[idx], self.label_paths[idx], self.gt_indices[idx]
-        img = torch.from_numpy(np.rollaxis(cv2.imread(path_img), -1, 0)/255.0).float()
-        return img, path_img, self.classes[gt]
+        path_img, path_label, gt = self.image_paths[idx], self.label_paths[idx], self.gt_indices[idx]
+        img = cv2.imread(path_img)
+
+        # From BGR to RGB as CV2 reads color images in BGR format
+        B = copy.deepcopy(img[:, :, 0])
+        R = copy.deepcopy(img[:, :, -1])
+        img[:, :, 0], img[:, :, -1] = R, B
+        img = torch.from_numpy(np.rollaxis(img, -1, 0)).float()
+
+        with open(path_label, "r") as f:
+            label_data = json.load(f)
+        box_height = label_data["box_height"]
+        return img, path_img, self.classes[gt], box_height
 
     def find_classes(self):
         """
@@ -87,11 +98,7 @@ class E2E_MLT_Dataset(Dataset):
 
 class E2E_MLT_Dataset_Synth(Dataset):
 
-    def __init__(self,
-                 path_to_annotation: str,
-                 path_to_lexicon: str,
-                 alphabet: str,
-                 ):
+    def __init__(self, path_to_annotation: str, path_to_lexicon: str, output_filtered_data: str = None):
         """
         E2E_MLT_Dataset_Synth constructor. This dataset uses the synthetically-generated data by the
         "Visual Geometry Group" of the University of Oxford --> http://www.robots.ox.ac.uk/~vgg/data/text/#sec-synth.
@@ -100,18 +107,17 @@ class E2E_MLT_Dataset_Synth(Dataset):
 
         :param path_to_annotation: Path to the annotation .txt file.
         :param path_to_lexicon: Path to the lexicon .txt file.
-        :param alphabet: The union of all characters of the different language alphabets.
+        :param output_filtered_data: Path to where the filtered annotation file will be saved.
         """
         super(E2E_MLT_Dataset_Synth, self).__init__()
         assert os.path.isfile(path_to_annotation)
         assert os.path.isfile(path_to_lexicon)
         self.path_to_annotation = path_to_annotation
         self.path_to_lexicon = path_to_lexicon
-
-        self.alphabet = alphabet
+        self.output_filtered_data = output_filtered_data
 
         self.lexicon = self.get_lexicon()
-        self.image_paths, self.labels = self.get_data()
+        self.image_paths, self.labels, _ = self.get_data()
         self.num_classes = len(self.image_paths)
 
     def __len__(self):
@@ -122,6 +128,12 @@ class E2E_MLT_Dataset_Synth(Dataset):
         path_img, gt = self.image_paths[idx], self.labels[idx]
         img = cv2.imread(path_img)
         img = cv2.resize(img, (100, 32))
+
+        # From BGR to RGB as CV2 reads color images in BGR format
+        B = copy.deepcopy(img[:, :, 0])
+        R = copy.deepcopy(img[:, :, -1])
+        img[:, :, 0], img[:, :, -1] = R, B
+
         img = torch.from_numpy(np.rollaxis(img, -1, 0)).float()
         return img, path_img, gt
 
@@ -147,9 +159,40 @@ class E2E_MLT_Dataset_Synth(Dataset):
 
         lines = list(map(lambda s: s.decode("utf-8").rstrip(), lines))
         image_paths = list(map(lambda s: s.split(" ")[0], lines))
-        label_idx = list(map(lambda s: int(s.split(" ")[-1]), lines))
+        labels_idx = list(map(lambda s: int(s.split(" ")[-1]), lines))
 
-        labels = [self.lexicon[idx] for idx in label_idx]
+        labels = [self.lexicon[idx] for idx in labels_idx]
 
-        return image_paths, labels
+        return image_paths, labels, labels_idx
 
+    def create_filtered_data(self):
+        """
+        Filters bad data out to avoid unexpected interruptions and exceptions whilst training and writes the results
+        into a filtered annotation .txt file.
+
+        :return: None
+        """
+        image_paths, _, labels_idx = self.get_data()
+        pbar = tqdm(zip(image_paths, labels_idx))
+        lines = []
+        for (path, label_idx) in pbar:
+            try:
+                img = cv2.imread(path)
+                img = cv2.resize(img, (100, 32))
+                line = path + " " + str(label_idx) + "\n"
+                lines.append(line.encode("utf-8"))
+            except cv2.error:
+                continue
+
+        with open(self.output_filtered_data, "wb") as f:
+            f.writelines(lines)
+
+
+if __name__ == "__main__":
+    lexicon_path = os.path.join(os.getcwd(), os.pardir, "lexicon.txt")
+    for split in ["train", "val", "test"]:
+        output_filtered_data = os.path.join(os.getcwd(), os.pardir, "filtered_annotation_{}.txt".format(split))
+        path_to_annotation_file = os.path.join(os.getcwd(), os.pardir, "my_annotation_{}.txt".format(split))
+        dataset = E2E_MLT_Dataset_Synth(path_to_annotation_file, lexicon_path, output_filtered_data)
+        logging.info(50 * "-" + "Filtering {} data".format(split) + 50 * "-")
+        dataset.create_filtered_data()

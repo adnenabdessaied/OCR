@@ -76,12 +76,12 @@ def _get_args():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-tr",
                             "--annotation_train",
-                            default="my_annotation_train.txt",
+                            default="annotation_reduced_train.txt",
                             help="Path to the training annotation .txt file.")
 
     arg_parser.add_argument("-val",
                             "--annotation_val",
-                            default="my_annotation_val.txt",
+                            default="filtered_annotation_val.txt",
                             help="Path to the validation annotation .txt file.")
 
     arg_parser.add_argument("-l",
@@ -91,7 +91,7 @@ def _get_args():
 
     arg_parser.add_argument("-b",
                             "--batch_size",
-                            default=32,
+                            default=128,
                             help="Batch size.")
 
     arg_parser.add_argument("-e",
@@ -107,13 +107,13 @@ def _get_args():
     arg_parser.add_argument("-chkpt",
                             "--checkpoints",
                             required=False,
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/chekpoints",
+                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints",
                             help="Directory for check-pointing the network.")
 
     arg_parser.add_argument("-bchkpt",
                             "--best_checkpoint",
                             required=False,
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/chekpoints/best",
+                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints/best",
                             help="Directory for check-pointing the network.")
 
     args = vars(arg_parser.parse_args())
@@ -168,7 +168,7 @@ def train(args):
         logging.info("OCR network successfully constructed...")
 
         # We use learning rate of 1e-4 as suggested in the paper --> https://arxiv.org/pdf/1801.09919.pdf
-        optimizer = optim.Adam(net.parameters(), lr=1e-3, weight_decay=1e-5)
+        optimizer = optim.Adam(net.parameters(), lr=1e-4, weight_decay=1e-5)
         start_epoch = 0
         batch_iter_tr = 0
         batch_iter_val = 0
@@ -181,7 +181,7 @@ def train(args):
     # Construct train and validation data loaders
     logging.info("Constructing the data loaders ...")
     tr_data_loader = DataLoader(tr_dataset, batch_size=args["batch_size"], shuffle=True, num_workers=6)
-    val_data_loader = DataLoader(val_dataset, batch_size=args["batch_size"], shuffle=True, num_workers=6)
+    val_data_loader = DataLoader(val_dataset, batch_size=int(args["batch_size"] / 2), shuffle=True, num_workers=6)
     logging.info("Data loaders successfully constructed ...")
 
     # We use the ctc loss function.
@@ -190,7 +190,7 @@ def train(args):
     # Define the summary writer to be used for tensorboard visualizations.
     summary_writer = SummaryWriter(log_dir=args["tensorboard"])
 
-    modes = ["TRAINING", "VALIDATION"]
+    modes = ["VALIDATION", "VALIDATION"]
     for epoch in range(start_epoch + 1, args["epochs"]):
         for mode in modes:
             if mode == "TRAINING":
@@ -230,7 +230,7 @@ def train(args):
 
                     # compute the training accuracies
                     greedy_decodings = from_probabilities_to_letters(ocr_outputs, net.alphabet)
-                    accuracies_tr = compute_accuracies(labels, greedy_decodings, mode)
+                    accuracies_tr, closest_gts = compute_accuracies(labels, greedy_decodings, labels, mode)
 
                     # choose 4 random pictures for tb visualization
                     try:
@@ -240,19 +240,20 @@ def train(args):
 
                     decorated_images = decorate_tb_image([image_paths[idx] for idx in random_idx],
                                                          [labels[idx] for idx in random_idx],
-                                                         [greedy_decodings[idx] for idx in random_idx])
+                                                         [greedy_decodings[idx] for idx in random_idx],
+                                                         [closest_gts[idx] for idx in random_idx])
 
                     # Write the summaries to tensorboard
                     summary_writer.add_scalar("CTC_loss_tr", ctc_loss_tr.item(), batch_iter_tr)
                     summary_writer.add_scalars("Training_accuracies", accuracies_tr, batch_iter_tr)
                     summary_writer.add_images(mode, decorated_images, batch_iter_tr, dataformats="NHWC")
 
-                    logging.info("\n Tr. iter. {}: loss = {} | exact_acc = {} | hamming_acc = {} |"
-                                 " levenshtein_acc = {}\n".format(batch_iter_tr,
-                                                                  ctc_loss_tr.item(),
-                                                                  accuracies_tr["exact_acc_" + mode],
-                                                                  accuracies_tr["hamming_acc_" + mode],
-                                                                  accuracies_tr["levenshtein_acc_" + mode]))
+                    logging.info("\n Tr. iter. {}: loss = {} | exact_acc = {} | exact_acc_after_mapping_ = {}".format(
+                        batch_iter_tr,
+                        ctc_loss_tr.item(),
+                        accuracies_tr["exact_acc_" + mode],
+                        accuracies_tr["exact_acc_after_mapping_" + mode])
+                    )
 
                     batch_iter_tr += 1
                     torch.cuda.empty_cache()
@@ -304,7 +305,10 @@ def train(args):
 
                     # compute the validation accuracies
                     greedy_decodings = from_probabilities_to_letters(ocr_outputs, net.alphabet)
-                    accuracies_val = compute_accuracies(labels, greedy_decodings, mode)
+                    accuracies_val, closest_gts = compute_accuracies(labels,
+                                                                     greedy_decodings,
+                                                                     labels,
+                                                                     mode)
 
                     # choose 4 random pictures for tb visualization
                     try:
@@ -314,19 +318,19 @@ def train(args):
 
                     decorated_images = decorate_tb_image([image_paths[idx] for idx in random_idx],
                                                          [labels[idx] for idx in random_idx],
-                                                         [greedy_decodings[idx] for idx in random_idx])
-
+                                                         [greedy_decodings[idx] for idx in random_idx],
+                                                         [closest_gts[idx] for idx in random_idx])
                     # Write the summaries to tensorboard
                     summary_writer.add_scalar("CTC_loss_val", ctc_loss_val.item(), batch_iter_val)
                     summary_writer.add_scalars("Validation_accuracies", accuracies_val, batch_iter_val)
                     summary_writer.add_image(mode, decorated_images, batch_iter_val, dataformats="NHWC")
 
-                    logging.info("\n Val. iter. {}: loss = {} | exact_acc = {} | hamming_acc = {} |"
-                                 " levenshtein_acc = {} \n".format(batch_iter_tr,
-                                                                   ctc_loss_val.item(),
-                                                                   accuracies_val["exact_acc_" + mode],
-                                                                   accuracies_val["hamming_acc_" + mode],
-                                                                   accuracies_val["levenshtein_acc_" + mode]))
+                    logging.info("\n Val. iter. {}: loss = {} | exact_acc = {} | exact_acc_after_mapping_ = {}".format(
+                        batch_iter_tr,
+                        ctc_loss_val.item(),
+                        accuracies_val["exact_acc_" + mode],
+                        accuracies_val["exact_acc_after_mapping_" + mode])
+                    )
 
                     batch_iter_val += 1
 
