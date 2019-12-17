@@ -76,7 +76,7 @@ def _get_args():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-tr",
                             "--annotation_train",
-                            default="annotation_reduced_train.txt",
+                            default="filtered_annotation_train.txt",
                             help="Path to the training annotation .txt file.")
 
     arg_parser.add_argument("-val",
@@ -91,12 +91,12 @@ def _get_args():
 
     arg_parser.add_argument("-b",
                             "--batch_size",
-                            default=128,
+                            default=8,
                             help="Batch size.")
 
     arg_parser.add_argument("-e",
                             "--epochs",
-                            default=1000,
+                            default=100,
                             help="Number of epochs.")
 
     arg_parser.add_argument("-tb",
@@ -190,10 +190,10 @@ def train(args):
     # Define the summary writer to be used for tensorboard visualizations.
     summary_writer = SummaryWriter(log_dir=args["tensorboard"])
 
-    modes = ["VALIDATION", "VALIDATION"]
+    modes = ["Training", "Validation"]
     for epoch in range(start_epoch + 1, args["epochs"]):
         for mode in modes:
-            if mode == "TRAINING":
+            if mode == "Training":
                 pbar_train = tqdm(tr_data_loader)
                 pbar_train.set_description("{} | Epoch {} / {}".format(mode, epoch, args["epochs"]))
                 for images, image_paths, labels in pbar_train:

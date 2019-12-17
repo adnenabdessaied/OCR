@@ -82,22 +82,22 @@ def _get_args():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-tri",
                             "--training_images_path",
-                            default="/lhome/mabdess/LaendleDrive2018/my_data/split_images/train",
+                            default="/lhome/mabdess/LaendleDrive2018/my_data_2/images/train",
                             help="Path to the folder containing the training images.")
 
     arg_parser.add_argument("-trl",
                             "--training_labels_path",
-                            default="/lhome/mabdess/LaendleDrive2018/my_data/split_labels/train",
+                            default="/lhome/mabdess/LaendleDrive2018/my_data_2/labels/train",
                             help="Path to the folder containing the training labels.")
 
     arg_parser.add_argument("-vali",
                             "--validation_images_path",
-                            default="/lhome/mabdess/LaendleDrive2018/my_data/split_images/val",
+                            default="/lhome/mabdess/LaendleDrive2018/my_data_2/images/val",
                             help="Path to the folder containing the validation images.")
 
     arg_parser.add_argument("-vall",
                             "--validation_labels_path",
-                            default="/lhome/mabdess/LaendleDrive2018/my_data/split_labels/val",
+                            default="/lhome/mabdess/LaendleDrive2018/my_data_2/labels/val",
                             help="Path to the folder containing the validation labels.")
 
     arg_parser.add_argument("-b",
@@ -434,7 +434,7 @@ def train(args):
                         summary_writer.add_scalars(k, v, batch_iter_val)
 
                     if accuracies_num_det_val is not None:
-                        summary_writer.add_scalars("Training_num_det_accuracies",
+                        summary_writer.add_scalars("val_num_det_accuracies",
                                                    accuracies_num_det_val,
                                                    batch_iter_val)
                     logging.info("\n Val. iter. {}: loss = {} | exact_acc = {} | exact_acc_after_mapping_ = {}".format(
