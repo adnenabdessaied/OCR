@@ -1,8 +1,6 @@
 # OCR
-This reposotory implements the OCR branch of the method introduced in the **E2E-MLT - an Unconstrained End-to-End Method for Multi-Language Scene Text**
-paper by Busta *et al* ([paper](https://arxiv.org/abs/1801.09919)). We wanted to see how the OCR branch performs on traffic signs, i.e. 
-the network has to detect what was written on those sings. 
-
+This repository implements the OCR branch of the method introduced in the **E2E-MLT - an Unconstrained End-to-End Method for Multi-Language Scene Text**
+paper published by Busta *et al* ([paper](https://arxiv.org/abs/1801.09919)). We wanted to see how the OCR branch performs on traffic signs.
 
 ### Pre-training
 We have noticed that pre-training the network on synthetic data helps improve the overall performance and speeds up the training process.
@@ -26,7 +24,9 @@ E.g. the crops from the last example are
 
 **Note that E2E-MLT can learn to recognize multiple languages at the same time. We only trained it for english and german 
 characters.**
+
 All the details regarding the hyperparameters, loss function, etc can be found in the paper mentioned at the very beginning.
+
 ### Evaluation
 After training/fine-tuning the network for 10 epochs on our data, we use it for prediction. For the sake of continuity, we use
 the same image, i.e. the same crops, to give a feeling of what the network does. 
