@@ -11,7 +11,6 @@ import functools
 import argparse
 from datetime import datetime
 import random
-import copy
 from tqdm import tqdm
 
 from tensorboardX import SummaryWriter
@@ -82,22 +81,22 @@ def _get_args():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-tri",
                             "--training_images_path",
-                            default="/lhome/mabdess/LaendleDrive2018/my_data_2/images/train",
+                            required=True,
                             help="Path to the folder containing the training images.")
 
     arg_parser.add_argument("-trl",
                             "--training_labels_path",
-                            default="/lhome/mabdess/LaendleDrive2018/my_data_2/labels/train",
+                            required=True,
                             help="Path to the folder containing the training labels.")
 
     arg_parser.add_argument("-vali",
                             "--validation_images_path",
-                            default="/lhome/mabdess/LaendleDrive2018/my_data_2/images/val",
+                            required=True,
                             help="Path to the folder containing the validation images.")
 
     arg_parser.add_argument("-vall",
                             "--validation_labels_path",
-                            default="/lhome/mabdess/LaendleDrive2018/my_data_2/labels/val",
+                            required=True,
                             help="Path to the folder containing the validation labels.")
 
     arg_parser.add_argument("-b",
@@ -107,7 +106,7 @@ def _get_args():
 
     arg_parser.add_argument("-e",
                             "--epochs",
-                            default=1000,
+                            default=10,
                             help="Number of epochs.")
 
     arg_parser.add_argument("-pre",
@@ -117,30 +116,23 @@ def _get_args():
 
     arg_parser.add_argument("-bhi",
                             "--box_heights_intervals",
-                            default=[10, 13, 16, 19, 22, 100],
+                            default=[8, 10, 12, 14, 16],
                             help="The box height intervals based on which we want to investigate the accuracies.")
 
     arg_parser.add_argument("-tb",
                             "--tensorboard",
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/summaries_1",
+                            required=True,
                             help="Tensorboard summaries directory.")
 
     arg_parser.add_argument("-chkpt",
                             "--checkpoints",
-                            required=False,
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints_1",
+                            required=True,
                             help="Directory for check-pointing the network.")
 
     arg_parser.add_argument("-chkpt_synth",
                             "--checkpoints_synthetic",
-                            required=False,
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints_synth",
-                            help="Directory for check-pointing the network.")
-    arg_parser.add_argument("-bchkpt",
-                            "--best_checkpoint",
-                            required=False,
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints_1/best",
-                            help="Directory for check-pointing the network.")
+                            required=True,
+                            help="Directory containing check-points of pre-trained network.")
 
     args = vars(arg_parser.parse_args())
 
@@ -247,16 +239,6 @@ def train(args):
     val_dataset = E2E_MLT_Dataset(args["validation_images_path"], args["validation_labels_path"])
     logging.info("Data successfully loaded ...")
 
-    # Construct the samplers to combat the problem of unbalanced data.
-    # tr_counts = np.bincount(tr_dataset.gt_indices)
-    # tr_weights = torch.from_numpy(1.0 / tr_counts)
-    # tr_weigths_all = tr_weights[tr_dataset.gt_indices]
-    # tr_sampler = torch.utils.data.WeightedRandomSampler(tr_weigths_all, len(tr_weigths_all))
-    # val_counts = np.bincount(val_dataset.gt_indices)
-    # val_weights = torch.from_numpy(1.0 / val_counts)
-    # val_weigths_all = val_weights[val_dataset.gt_indices]
-    # val_sampler = torch.utils.data.WeightedRandomSampler(val_weigths_all, len(val_weigths_all))
-
     # Construct train and validation data loaders
     logging.info("Constructing the data loaders ...")
     tr_data_loader = DataLoader(tr_dataset, batch_size=args["batch_size"], shuffle=True, num_workers=6)
@@ -345,6 +327,8 @@ def train(args):
                     summary_writer.add_scalars("Training_accuracies", accuracies_tr, batch_iter_tr)
                     for k, v in accuracies_tr_hb.items():
                         summary_writer.add_scalars(k, v, batch_iter_tr)
+                    if accuracies_num_det_tr is not None:
+                        summary_writer.add_scalars("Training_num_det_accuracies", accuracies_num_det_tr, batch_iter_tr)
 
                     summary_writer.add_images(mode, decorated_images, batch_iter_tr, dataformats="NHWC")
 
@@ -354,8 +338,6 @@ def train(args):
                         accuracies_tr["exact_acc_" + mode],
                         accuracies_tr["exact_acc_after_mapping_" + mode])
                     )
-                    if accuracies_num_det_tr is not None:
-                        summary_writer.add_scalars("Training_num_det_accuracies", accuracies_num_det_tr, batch_iter_tr)
 
                     batch_iter_tr += 1
                     torch.cuda.empty_cache()

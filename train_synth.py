@@ -76,17 +76,17 @@ def _get_args():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-tr",
                             "--annotation_train",
-                            default="filtered_annotation_train.txt",
+                            required=True,
                             help="Path to the training annotation .txt file.")
 
     arg_parser.add_argument("-val",
                             "--annotation_val",
-                            default="filtered_annotation_val.txt",
+                            required=True,
                             help="Path to the validation annotation .txt file.")
 
     arg_parser.add_argument("-l",
                             "--lexicon",
-                            default="lexicon.txt",
+                            required=True,
                             help="Path to the lexicon .txt file.")
 
     arg_parser.add_argument("-b",
@@ -96,24 +96,17 @@ def _get_args():
 
     arg_parser.add_argument("-e",
                             "--epochs",
-                            default=100,
+                            default=10,
                             help="Number of epochs.")
 
     arg_parser.add_argument("-tb",
                             "--tensorboard",
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/summaries",
+                            required=True,
                             help="Tensorboard summaries directory.")
 
     arg_parser.add_argument("-chkpt",
                             "--checkpoints",
-                            required=False,
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints",
-                            help="Directory for check-pointing the network.")
-
-    arg_parser.add_argument("-bchkpt",
-                            "--best_checkpoint",
-                            required=False,
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints/best",
+                            required=True,
                             help="Directory for check-pointing the network.")
 
     args = vars(arg_parser.parse_args())

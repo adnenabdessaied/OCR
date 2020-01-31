@@ -11,6 +11,7 @@ import textdistance
 import numpy as np
 import re
 
+
 def from_probabilities_to_letters(ocr_output, alphabet):
     """
     Computes a "greedy" decoding of the ocr outputs. The ocr outputs can be thought of as probabilities over the
@@ -112,12 +113,11 @@ def compute_accuracies_per_box_height(gts: list,
     sub_indices = []
     for j in range(len(box_heights_intervals) - 1):
         sub_indices.append("{}-{}".format(box_heights_intervals[j], box_heights_intervals[j + 1]))
-        idx = []
-        for i in range(len(box_heights)):
-            if box_heights_intervals[j] <= box_heights[i] < box_heights_intervals[j + 1]:
-                idx.append(i)
-
+        idx = [i for i in range(len(box_heights)) if box_heights_intervals[j] <= box_heights[i] < box_heights_intervals[j + 1]]
         interval_indicies.append(idx)
+
+    sub_indices.append("bigger_{}".format(box_heights_intervals[-1]))
+    interval_indicies.append([i for i in range(len(box_heights)) if box_heights_intervals[-1] <= box_heights[i]])
 
     gts_all_intervals = [[gts[i] for i in idx] for idx in interval_indicies if len(idx) > 0]
     greedy_decodings_all_intervals = [[greedy_decodings[i] for i in idx] for idx in interval_indicies if len(idx) > 0]
