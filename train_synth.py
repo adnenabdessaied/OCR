@@ -146,7 +146,6 @@ def train(args):
 
         optimizer = most_recent_chkpt["optimizer"]
         optimizer.load_state_dict(most_recent_chkpt["optimizer_state_dict"])
-
         start_epoch = most_recent_chkpt["epoch"]
         batch_iter_tr = most_recent_chkpt["batch_iter_tr"]
         batch_iter_val = most_recent_chkpt["batch_iter_val"]

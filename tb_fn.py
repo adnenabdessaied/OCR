@@ -32,5 +32,4 @@ def decorate_tb_image(image_paths: list, gt_texts: list, pred_texts: list, close
         cv2.putText(img, "closest: " + closest_text, (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         img = img / 255.0
         decorated_images.append(torch.from_numpy(img))
-
     return torch.stack(decorated_images, dim=0)

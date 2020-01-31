@@ -211,7 +211,6 @@ def train(args):
             # Send the net first to the device to avoid potential runtime errors caused by the optimizer if we resume
             # training on a different device
             net.to(device)
-
             optimizer = most_recent_chkpt["optimizer"]
             optimizer.load_state_dict(most_recent_chkpt["optimizer_state_dict"])
 

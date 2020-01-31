@@ -147,6 +147,7 @@ class E2E_MLT_Dataset_Synth(Dataset):
 
         lines = list(map(lambda s: (s.decode("utf-8").rstrip()), lines))
         lexicon = dict(zip([i for i in range(len(lines))], lines))
+
         return lexicon
 
     def get_data(self):
