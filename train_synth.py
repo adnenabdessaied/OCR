@@ -101,12 +101,12 @@ def _get_args():
 
     arg_parser.add_argument("-tb",
                             "--tensorboard",
-                            required=True,
+                            default="summaries_synth",
                             help="Tensorboard summaries directory.")
 
     arg_parser.add_argument("-chkpt",
                             "--checkpoints",
-                            required=True,
+                            default="checkpoints_synth",
                             help="Directory for check-pointing the network.")
 
     args = vars(arg_parser.parse_args())
