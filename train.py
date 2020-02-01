@@ -111,7 +111,7 @@ def _get_args():
 
     arg_parser.add_argument("-pre",
                             "--pre_trained",
-                            default=True,
+                            default="checkpoints_synth",
                             help="Use a pre-trained net on synthetic data.")
 
     arg_parser.add_argument("-bhi",
