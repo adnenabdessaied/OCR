@@ -1,6 +1,6 @@
 # OCR
 This repository implements the OCR branch of the method introduced in the **E2E-MLT - an Unconstrained End-to-End Method for Multi-Language Scene Text**
-paper published by Busta *et al* ([paper](https://arxiv.org/abs/1801.09919)). We wanted to see how the OCR branch performs on traffic signs.
+paper published by Busta *et al.* ([paper](https://arxiv.org/abs/1801.09919)). We wanted to see how the OCR branch performs on traffic signs.
 
 ### Pre-training
 We have noticed that pre-training the network on synthetic data helps improve the overall performance and speeds up the training process.
