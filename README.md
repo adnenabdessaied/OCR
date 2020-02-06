@@ -27,6 +27,8 @@ characters.**
 
 All the details regarding the hyperparameters, loss function, etc can be found in the paper mentioned at the very beginning.
 
+However, the detection was done seperately beforehand, i.e. our labels include the contour points of each traffic sign within the bigger picutre as well as the ground truth labels. 
+
 ### Evaluation
 After training/fine-tuning the network for 10 epochs on our data, we use it for prediction. For the sake of continuity, we use
 the same image, i.e. the same crops, to give a feeling of what the network does. 
