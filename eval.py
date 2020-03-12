@@ -31,12 +31,10 @@ def _get_args():
 
     arg_parser.add_argument("-evali",
                             "--evaluation_images_path",
-                            default="/lhome/mabdess/VirEnv/OCR/data/usa_data/images/val",
                             help="Path to the folder containing the validation images.")
 
     arg_parser.add_argument("-evall",
                             "--evaluation_labels_path",
-                            default="/lhome/mabdess/VirEnv/OCR/data/usa_data/labels/val",
                             help="Path to the folder containing the validation labels.")
 
     arg_parser.add_argument("-b",
@@ -51,13 +49,11 @@ def _get_args():
 
     arg_parser.add_argument("-tb",
                             "--tensorboard",
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/summaries_ger_p_0.2/eval",
                             help="Tensorboard summaries directory.")
 
     arg_parser.add_argument("-chkpt",
                             "--checkpoints",
                             required=False,
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints_ger_p_0.2/best",
                             help="Directory for check-pointing the network.")
 
     args = vars(arg_parser.parse_args())
