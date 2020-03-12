@@ -81,22 +81,18 @@ def _get_args():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-tri",
                             "--training_images_path",
-                            default="/lhome/mabdess/VirEnv/OCR/data/usa_data/images/train",
                             help="Path to the folder containing the training images.")
 
     arg_parser.add_argument("-trl",
                             "--training_labels_path",
-                            default="/lhome/mabdess/VirEnv/OCR/data/usa_data/labels/train",
                             help="Path to the folder containing the training labels.")
 
     arg_parser.add_argument("-vali",
                             "--validation_images_path",
-                            default="/lhome/mabdess/VirEnv/OCR/data/usa_data/images/val",
                             help="Path to the folder containing the validation images.")
 
     arg_parser.add_argument("-vall",
                             "--validation_labels_path",
-                            default="/lhome/mabdess/VirEnv/OCR/data/usa_data/labels/val",
                             help="Path to the folder containing the validation labels.")
 
     arg_parser.add_argument("-b",
@@ -121,24 +117,21 @@ def _get_args():
 
     arg_parser.add_argument("-tb",
                             "--tensorboard",
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/summaries_ger_smaller_net_p_0.5",
                             help="Tensorboard summaries directory.")
 
     arg_parser.add_argument("-chkpt",
                             "--checkpoints",
                             required=False,
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints_ger_smaller_net_p_0.5",
                             help="Directory for check-pointing the network.")
 
     arg_parser.add_argument("-chkpt_synth",
                             "--checkpoints_synthetic",
                             required=False,
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints_synth_smaller_net_p_0.5",
                             help="Directory containing check-points of pre-trained network.")
+    
     arg_parser.add_argument("-bchkpt",
                             "--best_checkpoint",
                             required=False,
-                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints_ger_smaller_net_p_0.5/best",
                             help="Directory for check-pointing the network.")
 
     args = vars(arg_parser.parse_args())
