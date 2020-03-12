@@ -12,7 +12,7 @@ import argparse
 from datetime import datetime
 import random
 from tqdm import tqdm
-
+from time import time
 from tensorboardX import SummaryWriter
 from accuracies import (
     from_probabilities_to_letters,
@@ -81,22 +81,22 @@ def _get_args():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-tri",
                             "--training_images_path",
-                            required=True,
+                            default="/lhome/mabdess/VirEnv/OCR/data/usa_data/images/train",
                             help="Path to the folder containing the training images.")
 
     arg_parser.add_argument("-trl",
                             "--training_labels_path",
-                            required=True,
+                            default="/lhome/mabdess/VirEnv/OCR/data/usa_data/labels/train",
                             help="Path to the folder containing the training labels.")
 
     arg_parser.add_argument("-vali",
                             "--validation_images_path",
-                            required=True,
+                            default="/lhome/mabdess/VirEnv/OCR/data/usa_data/images/val",
                             help="Path to the folder containing the validation images.")
 
     arg_parser.add_argument("-vall",
                             "--validation_labels_path",
-                            required=True,
+                            default="/lhome/mabdess/VirEnv/OCR/data/usa_data/labels/val",
                             help="Path to the folder containing the validation labels.")
 
     arg_parser.add_argument("-b",
@@ -106,12 +106,12 @@ def _get_args():
 
     arg_parser.add_argument("-e",
                             "--epochs",
-                            default=10,
+                            default=50,
                             help="Number of epochs.")
 
     arg_parser.add_argument("-pre",
                             "--pre_trained",
-                            default="checkpoints_synth",
+                            default=False,
                             help="Use a pre-trained net on synthetic data.")
 
     arg_parser.add_argument("-bhi",
@@ -121,18 +121,25 @@ def _get_args():
 
     arg_parser.add_argument("-tb",
                             "--tensorboard",
-                            default="summaries",
+                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/summaries_ger_smaller_net_p_0.5",
                             help="Tensorboard summaries directory.")
 
     arg_parser.add_argument("-chkpt",
                             "--checkpoints",
-                            default="checkpoints",
+                            required=False,
+                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints_ger_smaller_net_p_0.5",
                             help="Directory for check-pointing the network.")
 
     arg_parser.add_argument("-chkpt_synth",
                             "--checkpoints_synthetic",
-                            required=True,
+                            required=False,
+                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints_synth_smaller_net_p_0.5",
                             help="Directory containing check-points of pre-trained network.")
+    arg_parser.add_argument("-bchkpt",
+                            "--best_checkpoint",
+                            required=False,
+                            default="/lhome/mabdess/VirEnv/OCR/src/E2E_MLT/checkpoints_ger_smaller_net_p_0.5/best",
+                            help="Directory for check-pointing the network.")
 
     args = vars(arg_parser.parse_args())
 
@@ -142,7 +149,7 @@ def _get_args():
     return args
 
 
-def save_checkpoint(net, optimizer, epoch, batch_iter_tr, batch_iter_val, args):
+def _save_checkpoint(net, optimizer, epoch, batch_iter_tr, batch_iter_val, args):
     """
     A function that saves a checkpoint of a network.
     :param net: The network we want to checkpoint.
@@ -165,13 +172,45 @@ def save_checkpoint(net, optimizer, epoch, batch_iter_tr, batch_iter_val, args):
     }, os.path.join(args["checkpoints"], "checkpoint_{}.pth".format(timestamp)))
 
 
-def train(args):
-    # Reproducibility --> https://pytorch.org/docs/stable/notes/randomness
-    torch.manual_seed(0)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(0)
+def _load_net(checkpoints_path, device):
+    """
+    Loads a saved model for fine tuning or evaluation
+    :param checkpoints_path: Path to the folder containing the checkpoints.
+    :param device: The device used for training/evaluation
+    :return: net, optimizer, start_epoch, batch_iter_tr, batch_iter_val
+    """
+    # Load the most recent checkpoint. Otherwise start training from scratch.
+    checkpoints = [ckpt for ckpt in os.listdir(checkpoints_path) if ckpt.endswith("pth")]
+    checkpoints = [os.path.join(checkpoints_path, checkpoint) for checkpoint in checkpoints]
+    most_recent_chkpt_path = max(checkpoints, key=os.path.getctime)
+    most_recent_chkpt = torch.load(most_recent_chkpt_path)
+    net = most_recent_chkpt["net"]
+    net.load_state_dict(most_recent_chkpt["net_state_dict"])
 
+    # We want to train further
+    net.train()
+
+    # Send the net first to the device to avoid potential runtime errors caused by the optimizer if we resume
+    # training on a different device
+    net.to(device)
+
+    optimizer = most_recent_chkpt["optimizer"]
+    optimizer.load_state_dict(most_recent_chkpt["optimizer_state_dict"])
+
+    start_epoch = most_recent_chkpt["epoch"]
+    batch_iter_tr = most_recent_chkpt["batch_iter_tr"]
+    batch_iter_val = most_recent_chkpt["batch_iter_val"]
+    chkpt_timestamp = os.path.getmtime(most_recent_chkpt_path)
+    logging.info("Network loaded from the latest checkpoint saved on {}".format(datetime.fromtimestamp(
+        chkpt_timestamp)))
+    return net, optimizer, start_epoch, batch_iter_tr, batch_iter_val
+
+
+def _get_device():
+    """
+    Returns the available device: cuda:0 when using a GPU or CPU if cuda was not detected.
+    :return: device
+    """
     # Use GPU if available
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
@@ -179,6 +218,17 @@ def train(args):
     else:
         device = torch.device("cpu")
         logging.info("Using the CPU")
+    return device
+
+
+def train(args):
+    # Reproducibility --> https://pytorch.org/docs/stable/notes/randomness
+    torch.manual_seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(0)
+
+    device = _get_device()
 
     if args["pre_trained"]:
         checkpoints_synth = [ckpt for ckpt in os.listdir(args["checkpoints_synthetic"]) if ckpt.endswith("pth")]
@@ -196,32 +246,9 @@ def train(args):
         batch_iter_val = 0
         logging.info("Pre-trained net successfully loaded!")
     else:
-        # Load the most recent checkpoint. Otherwise start training from scratch.
-        checkpoints = [ckpt for ckpt in os.listdir(args["checkpoints"]) if ckpt.endswith("pth")]
-        checkpoints = [os.path.join(args["checkpoints"], checkpoint) for checkpoint in checkpoints]
-        if len(checkpoints) > 0:
-            most_recent_chkpt_path = max(checkpoints, key=os.path.getctime)
-            most_recent_chkpt = torch.load(most_recent_chkpt_path)
-            net = most_recent_chkpt["net"]
-            net.load_state_dict(most_recent_chkpt["net_state_dict"])
-
-            # We want to train further
-            net.train()
-
-            # Send the net first to the device to avoid potential runtime errors caused by the optimizer if we resume
-            # training on a different device
-            net.to(device)
-            optimizer = most_recent_chkpt["optimizer"]
-            optimizer.load_state_dict(most_recent_chkpt["optimizer_state_dict"])
-
-            start_epoch = most_recent_chkpt["epoch"]
-            batch_iter_tr = most_recent_chkpt["batch_iter_tr"]
-            batch_iter_val = most_recent_chkpt["batch_iter_val"]
-            chkpt_timestamp = os.path.getmtime(most_recent_chkpt_path)
-            logging.info("Network loaded from the latest checkpoint saved on {}".format(datetime.fromtimestamp(
-                chkpt_timestamp)))
-
-        else:
+        try:
+            net, optimizer, start_epoch, batch_iter_tr, batch_iter_val = _load_net(args["checkpoints"], device)
+        except:
             # Construct the OCR network from scratch
             net = OCR_NET()
             net.to(device)
@@ -251,7 +278,8 @@ def train(args):
     summary_writer = SummaryWriter(log_dir=args["tensorboard"])
 
     modes = ["Training", "Validation"]
-    for epoch in range(start_epoch + 1, args["epochs"]):
+    best_loss_val = 0
+    for epoch in range(start_epoch + 1, args["epochs"] + 1):
         for mode in modes:
             if mode == "Training":
                 pbar_train = tqdm(tr_data_loader)
@@ -341,7 +369,7 @@ def train(args):
                     batch_iter_tr += 1
                     torch.cuda.empty_cache()
 
-                save_checkpoint(net, optimizer, epoch, batch_iter_tr, batch_iter_val, args)
+                _save_checkpoint(net, optimizer, epoch, batch_iter_tr, batch_iter_val, args)
 
                 # Delete the oldest checkpoint if the number of checkpoints exceeds 10 to save disk space.
                 checkpoints = [ckpt for ckpt in os.listdir(args["checkpoints"]) if ckpt.endswith("pth")]
@@ -354,8 +382,9 @@ def train(args):
                 net.eval()
                 pbar_val = tqdm(val_data_loader)
                 pbar_val.set_description("{} | Epoch {} / {}".format(mode, epoch, args["epochs"]))
+                total_t = 0
+                val_loss_epoch = 0
                 for images, image_paths, labels, box_heights in pbar_val:
-
                     images = images.to(device)
                     ctc_targets, target_lengths = _get_ctc_tensors(labels, net.alphabet, device)
 
@@ -363,10 +392,11 @@ def train(args):
                     # words
                     labels = list(map(lambda x: x.replace(" ", ""), labels))
                     labels = list(map(lambda x: x.lower(), labels))
-
                     with torch.no_grad():
+                        start_t = time()
                         # Shape: (100, batch_size, 49)
                         ocr_outputs = net(images)
+                        total_t += time() - start_t
 
                     # The ctc loss requires the input lengths as it allows for variable length inputs. In our case,
                     # all the inputs have the same length.
@@ -377,8 +407,13 @@ def train(args):
                     # ocr_outputs are the inputs of the ctc_loss.
                     ctc_loss_val = criterion(ocr_outputs, ctc_targets, ocr_input_lengths, target_lengths)
 
+                    # Update the val_loss_epoch
+                    val_loss_epoch += ctc_loss_val
+
                     # compute the validation accuracies
+                    start_t = time()
                     greedy_decodings = from_probabilities_to_letters(ocr_outputs, net.alphabet)
+                    total_t += time() - start_t
                     accuracies_val, closest_gts = compute_accuracies(labels,
                                                                      greedy_decodings,
                                                                      val_dataset.classes,
@@ -430,6 +465,22 @@ def train(args):
                     # Release GPU memory cache
                     torch.cuda.empty_cache()
 
+                # Save the best net, i.e. the net that scores the best loss function on the validation set.
+                if epoch == 1:
+                    _save_checkpoint(net, optimizer, epoch, batch_iter_tr, batch_iter_val, args)
+
+                    best_loss_val = val_loss_epoch
+                elif val_loss_epoch <= best_loss_val:
+                    # Delete the older best checkpoints
+                    checkpoints = os.listdir(args["best_checkpoint"])
+                    checkpoints = [os.path.join(args["best_checkpoint"], checkpoint) for checkpoint in checkpoints]
+                    [os.remove(checkpoint) for checkpoint in checkpoints]
+
+                    _save_checkpoint(net, optimizer, epoch, batch_iter_tr, batch_iter_val, args)
+
+                    best_loss_val = val_loss_epoch
+
+                print("Inference time pro ts = {} seconds".format(total_t/len(val_dataset)))
                 # Switch back to train mode
                 net.train()
 
@@ -437,3 +488,4 @@ def train(args):
 if __name__ == "__main__":
     args = _get_args()
     train(args)
+    
