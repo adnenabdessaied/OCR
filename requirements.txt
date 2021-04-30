@@ -146,7 +146,7 @@ torch==1.3.0+cu100
 torchvision==0.4.1+cu100
 tqdm==4.37.0
 urdfdom-py==0.4.1
-urllib3==1.25.6
+urllib3==1.25.8
 Werkzeug==0.16.0
 wrapt==1.11.2
 xacro==1.13.4
